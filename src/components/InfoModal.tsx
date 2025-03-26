@@ -15,42 +15,72 @@ interface ServerStatus {
   icon?: string;
 }
 
+interface ServerStatuses {
+  [key: string]: ServerStatus | null;
+}
+
 export function InfoModal({ isOpen, onClose }: InfoModalProps) {
-  const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null);
+  const [serverStatuses, setServerStatuses] = useState<ServerStatuses>({
+    unicornmc: null,
+    champa: null
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      fetchServerStatus();
+      fetchServerStatuses();
     }
   }, [isOpen]);
 
-  const fetchServerStatus = async () => {
+  const fetchServerStatuses = async () => {
     setLoading(true);
     setError(null);
+    
+    const servers = [
+      { id: 'unicornmc', ip: 'unicornmc.club' },
+      { id: 'champa', ip: 'champa.lol' }
+    ];
+    
     try {
-      // Using mcapi.us to fetch Minecraft server status
-      // Replace "play.ciphercraft.net" with your actual server address
-      const response = await fetch('https://mcapi.us/server/status?ip=unicornmc.club');
-      const data = await response.json();
+      const statusPromises = servers.map(async (server) => {
+        try {
+          const response = await fetch(`https://mcapi.us/server/status?ip=${server.ip}`);
+          const data = await response.json();
+          
+          if (data.status === 'success') {
+            return {
+              id: server.id,
+              status: {
+                online: data.online,
+                players: {
+                  online: data.players.now,
+                  max: data.players.max
+                },
+                icon: data.favicon
+              }
+            };
+          } else {
+            return { id: server.id, status: null };
+          }
+        } catch (err) {
+          console.error(`Error fetching status for ${server.ip}:`, err);
+          return { id: server.id, status: null };
+        }
+      });
       
-      if (data.status === 'success') {
-        setServerStatus({
-          online: data.online,
-          players: {
-            online: data.players.now,
-            max: data.players.max
-          },
-          icon: data.favicon
-        });
-      } else {
-        throw new Error('Failed to fetch server status');
-      }
+      const results = await Promise.all(statusPromises);
+      
+      const newStatuses = { ...serverStatuses };
+      results.forEach(result => {
+        newStatuses[result.id] = result.status;
+      });
+      
+      setServerStatuses(newStatuses);
     } catch (err) {
-      setError('Could not connect to the Minecraft server');
-      console.error('Error fetching server status:', err);
+      setError('Could not connect to the Minecraft servers');
+      console.error('Error fetching server statuses:', err);
     } finally {
       setLoading(false);
     }
@@ -96,13 +126,13 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
               {/* Clickable Server Address */}
               <div className="flex items-center gap-2">
                 <button 
-                  onClick={() => copyToClipboard('unicornmc.club', 'server')}
+                  onClick={() => copyToClipboard('unicornmc.club', 'unicornmc')}
                   className="text-gray-300 hover:text-emerald-400 transition-colors flex items-center gap-1.5"
                 >
                   <span>unicornmc.club</span>
                   <Copy size={14} />
                 </button>
-                {copiedText === 'server' && (
+                {copiedText === 'unicornmc' && (
                   <span className="text-xs text-emerald-400">Copied!</span>
                 )}
               </div>
@@ -111,20 +141,20 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
               <div className="mt-2">
                 {error ? (
                   <p className="text-red-400 text-sm">{error}</p>
-                ) : serverStatus ? (
+                ) : serverStatuses.unicornmc ? (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${serverStatus.online ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                      <div className={`w-2 h-2 rounded-full ${serverStatuses.unicornmc.online ? 'bg-green-500' : 'bg-red-500'}`}></div>
                       <span className="text-sm text-gray-300">
-                        {serverStatus.online ? 'Online' : 'Offline'}
+                        {serverStatuses.unicornmc.online ? 'Online' : 'Offline'}
                       </span>
                     </div>
                     
-                    {serverStatus.online && (
+                    {serverStatuses.unicornmc.online && (
                       <div className="flex items-center gap-1.5">
                         <Users size={14} className="text-emerald-400" />
                         <span className="text-sm text-gray-300">
-                          {serverStatus.players.online}/{serverStatus.players.max} players
+                          {serverStatuses.unicornmc.players.online}/{serverStatuses.unicornmc.players.max} players
                         </span>
                       </div>
                     )}
@@ -133,10 +163,10 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
               </div>
               
               {/* Server Icon */}
-              {serverStatus?.icon && (
+              {serverStatuses.unicornmc?.icon && (
                 <div className="mt-2 flex justify-center">
                   <img 
-                    src={serverStatus.icon} 
+                    src={serverStatuses.unicornmc.icon} 
                     alt="Server Icon" 
                     className="w-16 h-16 rounded-md border border-gray-700"
                   />
@@ -145,6 +175,72 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
               
               <p className="text-sm text-gray-400 mt-2">
                 Join our UnicornMC server for an enhanced gameplay experience!
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <Server size={20} className="text-emerald-400 mt-1" />
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">Champa</h3>
+                {loading && (
+                  <Loader className="animate-spin text-emerald-400" size={16} />
+                )}
+              </div>
+              
+              {/* Clickable Server Address */}
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => copyToClipboard('champa.lol', 'champa')}
+                  className="text-gray-300 hover:text-emerald-400 transition-colors flex items-center gap-1.5"
+                >
+                  <span>champa.lol</span>
+                  <Copy size={14} />
+                </button>
+                {copiedText === 'champa' && (
+                  <span className="text-xs text-emerald-400">Copied!</span>
+                )}
+              </div>
+              
+              {/* Server Status */}
+              <div className="mt-2">
+                {error ? (
+                  <p className="text-red-400 text-sm">{error}</p>
+                ) : serverStatuses.champa ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${serverStatuses.champa.online ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                      <span className="text-sm text-gray-300">
+                        {serverStatuses.champa.online ? 'Online' : 'Offline'}
+                      </span>
+                    </div>
+                    
+                    {serverStatuses.champa.online && (
+                      <div className="flex items-center gap-1.5">
+                        <Users size={14} className="text-emerald-400" />
+                        <span className="text-sm text-gray-300">
+                          {serverStatuses.champa.players.online}/{serverStatuses.champa.players.max} players
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+              
+              {/* Server Icon */}
+              {serverStatuses.champa?.icon && (
+                <div className="mt-2 flex justify-center">
+                  <img 
+                    src={serverStatuses.champa.icon} 
+                    alt="Server Icon" 
+                    className="w-16 h-16 rounded-md border border-gray-700"
+                  />
+                </div>
+              )}
+              
+              <p className="text-sm text-gray-400 mt-2">
+                Connect to our Champa server for more gaming fun!
               </p>
             </div>
           </div>

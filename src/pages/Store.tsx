@@ -5,6 +5,7 @@ import { OrderModal } from '../components/OrderModal';
 import { MailboxModal } from '../components/MailboxModal';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { Link } from 'react-router-dom';
 
 function Store() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -52,12 +53,12 @@ function Store() {
                 My Orders
               </button>
               {isAdmin && (
-                <a
-                  href="/admin"
+                <Link
+                  to="/admin"
                   className="text-emerald-400 hover:text-emerald-300 flex items-center gap-2"
                 >
                   Admin Dashboard
-                </a>
+                </Link>
               )}
               <button
                 onClick={handleLogout}

@@ -6,7 +6,13 @@ import Admin from './pages/Admin';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+      <p>Loading...</p>
+    </div>;
+  }
   
   if (!user) {
     return <Navigate to="/" replace />;

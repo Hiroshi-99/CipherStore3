@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Upload } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
+import { sendTelegramNotification } from '../lib/telegramNotifications';
 
 interface OrderModalProps {
   isOpen: boolean;
@@ -42,14 +43,31 @@ export function OrderModal({ isOpen, onClose }: OrderModalProps) {
       if (uploadError) throw uploadError;
 
       // Create order
-      const { error: orderError } = await supabase.from('orders').insert({
+      const { error: orderError, data: orderData } = await supabase.from('orders').insert({
         user_id: user.id,
         username: username.trim(),
         payment_proof: data.path,
         status: 'pending'
-      });
+      }).select();
 
       if (orderError) throw orderError;
+
+      // Send Telegram notification
+      const orderInfo = orderData && orderData[0];
+      if (orderInfo) {
+        const message = `
+<b>🔔 New Order Received!</b>
+
+<b>Minecraft Username:</b> ${username.trim()}
+<b>Order ID:</b> ${orderInfo.id}
+<b>Status:</b> Pending
+<b>Date:</b> ${new Date().toLocaleString()}
+
+Please check the admin panel to review this order.
+`;
+        
+        await sendTelegramNotification(message);
+      }
 
       toast.success('Order submitted successfully!');
       setUsername('');

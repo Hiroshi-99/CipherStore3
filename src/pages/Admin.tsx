@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, Clock, LogOut, Search, Filter, RefreshCw } from '
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import { sendTelegramNotification } from '../lib/telegramNotifications';
 
 interface Order {
   id: string;
@@ -85,44 +86,83 @@ function Admin() {
         .eq('id', orderId);
 
       if (error) throw error;
+
+      // Get the updated order details
+      const { data: updatedOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+        
+      if (fetchError) throw fetchError;
       
-      // If order is approved, open the account details modal
-      if (newStatus === 'approved') {
-        const order = orders.find(o => o.id === orderId);
-        if (order) {
-          setSelectedOrder(order);
-          setIsAccountModalOpen(true);
-        }
-      } else {
-        toast.success(`Order ${newStatus} successfully`);
+      // Send Telegram notification about status change
+      if (updatedOrder) {
+        const statusEmoji = newStatus === 'approved' ? '✅' : '❌';
+        const message = `
+<b>${statusEmoji} Order Status Updated</b>
+
+<b>Minecraft Username:</b> ${updatedOrder.username}
+<b>Order ID:</b> ${updatedOrder.id}
+<b>New Status:</b> ${newStatus.toUpperCase()}
+<b>Updated at:</b> ${new Date().toLocaleString()}
+
+${newStatus === 'approved' 
+  ? 'Please proceed with providing account details.'
+  : 'No further action needed for this order.'}
+`;
+        await sendTelegramNotification(message);
       }
+
+      setOrders(orders.map(order => 
+        order.id === orderId ? { ...order, status: newStatus } : order
+      ));
       
-      fetchOrders();
+      toast.success(`Order status updated to ${newStatus}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update order status');
+      toast.error('Failed to update order status');
+      console.error(error);
     }
   };
 
-  const submitAccountDetails = async () => {
-    if (!selectedOrder) return;
-    
+  const handleSubmitAccountDetails = async () => {
     try {
+      if (!selectedOrder) return;
+      
       const { error } = await supabase
         .from('orders')
-        .update({ 
-          account_details: accountDetails 
+        .update({
+          account_details: accountDetails
         })
         .eq('id', selectedOrder.id);
 
       if (error) throw error;
+
+      // Send Telegram notification about account details provided
+      const message = `
+<b>🔑 Account Details Provided</b>
+
+<b>Minecraft Username:</b> ${selectedOrder.username}
+<b>Order ID:</b> ${selectedOrder.id}
+<b>Updated at:</b> ${new Date().toLocaleString()}
+
+Account details have been added to this order.
+`;
+      await sendTelegramNotification(message);
+
+      setOrders(orders.map(order => 
+        order.id === selectedOrder.id 
+          ? { ...order, account_details: accountDetails } 
+          : order
+      ));
       
-      toast.success('Account details saved successfully');
       setIsAccountModalOpen(false);
-      setAccountDetails({ username: '', password: '', additional_info: '' });
       setSelectedOrder(null);
-      fetchOrders();
+      setAccountDetails({ username: '', password: '', additional_info: '' });
+      toast.success('Account details added successfully');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save account details');
+      toast.error('Failed to add account details');
+      console.error(error);
     }
   };
 
@@ -413,7 +453,7 @@ function Admin() {
                 Cancel
               </button>
               <button
-                onClick={submitAccountDetails}
+                onClick={handleSubmitAccountDetails}
                 className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition-colors"
               >
                 Save Details

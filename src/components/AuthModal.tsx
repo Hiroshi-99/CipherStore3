@@ -14,41 +14,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   if (!isOpen) return null;
 
-  const validateForm = () => {
-    const newErrors: { email?: string; password?: string } = {};
-    let isValid = true;
-
-    // Email validation
-    if (!email) {
-      newErrors.email = 'Email is required';
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email address';
-      isValid = false;
-    }
-
-    // Password validation (only check strength for registration)
-    if (!password) {
-      newErrors.password = 'Password is required';
-      isValid = false;
-    } else if (!isLogin && password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters long';
-      isValid = false;
-    }
-
-    setErrors(newErrors);
-    return isValid;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) return;
-    
     setLoading(true);
 
     try {
@@ -57,83 +27,22 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           email,
           password,
         });
-        
-        if (error) {
-          if (error.message.includes('Invalid login credentials')) {
-            toast.error('Invalid email or password');
-          } else {
-            throw error;
-          }
-          return;
-        }
-        
+        if (error) throw error;
         toast.success('Successfully logged in!');
-        onClose();
       } else {
         const { error } = await supabase.auth.signUp({
           email,
           password,
         });
-        
-        if (error) {
-          if (error.message.includes('already registered')) {
-            toast.error('Email already in use');
-          } else if (error.message.includes('password')) {
-            toast.error('Password is too weak');
-          } else {
-            throw error;
-          }
-          return;
-        }
-        
-        toast.success('Registration successful! Check your email to confirm your account.');
-        onClose();
+        if (error) throw error;
+        toast.success('Registration successful! You can now log in.');
       }
+      onClose();
     } catch (error) {
-      console.error(error);
       toast.error(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
-  };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  // Calculate password strength for non-login mode
-  const getPasswordStrength = () => {
-    if (isLogin || !password) return null;
-    
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (/[A-Z]/.test(password)) strength++;
-    if (/[0-9]/.test(password)) strength++;
-    if (/[^A-Za-z0-9]/.test(password)) strength++;
-    
-    return (
-      <div className="mt-1">
-        <div className="h-1 w-full bg-gray-700 rounded-full overflow-hidden">
-          <div 
-            className={`h-full ${
-              strength === 0 ? 'w-0' :
-              strength === 1 ? 'w-1/4 bg-red-500' : 
-              strength === 2 ? 'w-2/4 bg-yellow-500' : 
-              strength === 3 ? 'w-3/4 bg-blue-500' : 
-              'w-full bg-green-500'
-            }`}
-          />
-        </div>
-        {strength > 0 && (
-          <p className="text-xs mt-1 text-gray-400">
-            {strength === 1 ? 'Weak' : 
-             strength === 2 ? 'Fair' : 
-             strength === 3 ? 'Good' : 
-             'Strong'}
-          </p>
-        )}
-      </div>
-    );
   };
 
   return (
@@ -159,14 +68,9 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={`w-full bg-gray-700/50 border ${
-                errors.email ? 'border-red-500' : 'border-gray-600'
-              } rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-400`}
+              className="w-full bg-gray-700/50 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
               required
             />
-            {errors.email && (
-              <p className="text-sm text-red-500 mt-1">{errors.email}</p>
-            )}
           </div>
 
           <div>
@@ -178,23 +82,17 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={`w-full bg-gray-700/50 border ${
-                  errors.password ? 'border-red-500' : 'border-gray-600'
-                } rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-10`}
+                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
                 required
               />
               <button
                 type="button"
-                onClick={togglePasswordVisibility}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            {errors.password && (
-              <p className="text-sm text-red-500 mt-1">{errors.password}</p>
-            )}
-            {getPasswordStrength()}
           </div>
 
           <button
@@ -209,10 +107,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
             <button
               type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setErrors({});
-              }}
+              onClick={() => setIsLogin(!isLogin)}
               className="text-emerald-400 hover:text-emerald-300"
             >
               {isLogin ? 'Register' : 'Login'}

@@ -10,6 +10,11 @@ interface Order {
   status: string;
   created_at: string;
   payment_proof: string;
+  account_details?: {
+    username?: string;
+    password?: string;
+    additional_info?: string;
+  };
 }
 
 function Admin() {
@@ -19,6 +24,13 @@ function Admin() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [accountDetails, setAccountDetails] = useState({
+    username: '',
+    password: '',
+    additional_info: ''
+  });
   
   useEffect(() => {
     fetchOrders();
@@ -74,11 +86,59 @@ function Admin() {
 
       if (error) throw error;
       
-      toast.success(`Order ${newStatus} successfully`);
+      // If order is approved, open the account details modal
+      if (newStatus === 'approved') {
+        const order = orders.find(o => o.id === orderId);
+        if (order) {
+          setSelectedOrder(order);
+          setIsAccountModalOpen(true);
+        }
+      } else {
+        toast.success(`Order ${newStatus} successfully`);
+      }
+      
       fetchOrders();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update order status');
     }
+  };
+
+  const submitAccountDetails = async () => {
+    if (!selectedOrder) return;
+    
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          account_details: accountDetails 
+        })
+        .eq('id', selectedOrder.id);
+
+      if (error) throw error;
+      
+      toast.success('Account details saved successfully');
+      setIsAccountModalOpen(false);
+      setAccountDetails({ username: '', password: '', additional_info: '' });
+      setSelectedOrder(null);
+      fetchOrders();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save account details');
+    }
+  };
+
+  const openAccountDetails = (order: Order) => {
+    setSelectedOrder(order);
+    // Pre-fill form if account details already exist
+    if (order.account_details) {
+      setAccountDetails({
+        username: order.account_details.username || '',
+        password: order.account_details.password || '',
+        additional_info: order.account_details.additional_info || ''
+      });
+    } else {
+      setAccountDetails({ username: '', password: '', additional_info: '' });
+    }
+    setIsAccountModalOpen(true);
   };
 
   const handleLogout = async () => {
@@ -239,40 +299,50 @@ function Admin() {
                             View Payment Proof
                           </a>
                         )}
+                        
+                        {order.account_details && order.status === 'approved' && (
+                          <div className="mt-2">
+                            <span className="text-xs bg-emerald-600/30 text-emerald-300 px-2 py-1 rounded">
+                              Account details provided
+                            </span>
+                          </div>
+                        )}
                       </div>
                       
                       {order.status === 'pending' && (
-                        <div className="flex flex-col gap-2">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleStatusChange(order.id, 'approved')}
-                              className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition-colors"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(order.id, 'rejected')}
-                              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                          <p className="text-xs text-gray-400 italic mt-1">
-                            Note: Account details will be sent to customer via mail box, not email.
-                          </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleStatusChange(order.id, 'approved')}
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition-colors"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleStatusChange(order.id, 'rejected')}
+                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+                          >
+                            Reject
+                          </button>
                         </div>
                       )}
                       
-                      {order.status !== 'pending' && (
-                        <div className="flex flex-col items-end">
+                      {order.status === 'approved' && (
+                        <div className="flex gap-2">
                           <div className="px-4 py-2 rounded-lg border border-gray-600 text-gray-400">
-                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                            Approved
                           </div>
-                          {order.status === 'approved' && (
-                            <p className="text-xs text-emerald-400 mt-2">
-                              Account details will be sent via mail box
-                            </p>
-                          )}
+                          <button
+                            onClick={() => openAccountDetails(order)}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+                          >
+                            {order.account_details ? 'Edit Account' : 'Add Account'}
+                          </button>
+                        </div>
+                      )}
+                      
+                      {order.status === 'rejected' && (
+                        <div className="px-4 py-2 rounded-lg border border-gray-600 text-gray-400">
+                          Rejected
                         </div>
                       )}
                     </div>
@@ -283,6 +353,75 @@ function Admin() {
           </div>
         </main>
       </div>
+      
+      {/* Account Details Modal */}
+      {isAccountModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-xl font-semibold text-white mb-4">
+              Account Details for {selectedOrder?.username}
+            </h3>
+            <p className="text-gray-400 mb-4">
+              These details will be sent to the user's mail box, not via email.
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Account Username
+                </label>
+                <input
+                  type="text"
+                  value={accountDetails.username}
+                  onChange={(e) => setAccountDetails({...accountDetails, username: e.target.value})}
+                  className="bg-gray-700 text-white rounded-lg py-2 px-4 w-full"
+                  placeholder="Enter account username"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Account Password
+                </label>
+                <input
+                  type="text"
+                  value={accountDetails.password}
+                  onChange={(e) => setAccountDetails({...accountDetails, password: e.target.value})}
+                  className="bg-gray-700 text-white rounded-lg py-2 px-4 w-full"
+                  placeholder="Enter account password"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Additional Information
+                </label>
+                <textarea
+                  value={accountDetails.additional_info}
+                  onChange={(e) => setAccountDetails({...accountDetails, additional_info: e.target.value})}
+                  className="bg-gray-700 text-white rounded-lg py-2 px-4 w-full h-24 resize-none"
+                  placeholder="Enter any additional information"
+                ></textarea>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setIsAccountModalOpen(false)}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitAccountDetails}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Save Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

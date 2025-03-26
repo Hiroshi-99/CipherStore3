@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { X, Mail, Clock, CheckCircle, XCircle, User, Key, Info } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -8,6 +8,11 @@ interface Order {
   username: string;
   status: string;
   created_at: string;
+  account_details?: {
+    username?: string;
+    password?: string;
+    additional_info?: string;
+  };
 }
 
 interface MailboxModalProps {
@@ -109,13 +114,55 @@ export function MailboxModal({ isOpen, onClose }: MailboxModalProps) {
                 <div className="text-sm text-gray-400">
                   Ordered on: {new Date(order.created_at).toLocaleDateString()}
                 </div>
-                {order.status === 'approved' && (
+                
+                {order.status === 'approved' && !order.account_details && (
                   <div className="mt-3 p-3 bg-emerald-400/10 border border-emerald-400/20 rounded-lg">
                     <p className="text-emerald-400 text-sm">
-                      Your account details will be sent to your registered email address.
+                      Your order has been approved. Account details will be provided soon.
                     </p>
                   </div>
                 )}
+                
+                {order.status === 'approved' && order.account_details && (
+                  <div className="mt-3 p-3 bg-emerald-400/10 border border-emerald-400/20 rounded-lg">
+                    <h4 className="text-emerald-400 font-medium mb-2">Your Account Details</h4>
+                    
+                    {order.account_details.username && (
+                      <div className="flex items-start gap-2 mb-2">
+                        <User size={16} className="text-emerald-400 mt-0.5" />
+                        <div>
+                          <p className="text-gray-300 text-sm font-medium">Username</p>
+                          <p className="text-white">{order.account_details.username}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {order.account_details.password && (
+                      <div className="flex items-start gap-2 mb-2">
+                        <Key size={16} className="text-emerald-400 mt-0.5" />
+                        <div>
+                          <p className="text-gray-300 text-sm font-medium">Password</p>
+                          <p className="text-white">{order.account_details.password}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {order.account_details.additional_info && (
+                      <div className="flex items-start gap-2">
+                        <Info size={16} className="text-emerald-400 mt-0.5" />
+                        <div>
+                          <p className="text-gray-300 text-sm font-medium">Additional Information</p>
+                          <p className="text-white whitespace-pre-wrap">{order.account_details.additional_info}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <p className="text-emerald-300 text-xs mt-3">
+                      ℹ️ Please save these details in a secure location.
+                    </p>
+                  </div>
+                )}
+                
                 {order.status === 'rejected' && (
                   <div className="mt-3 p-3 bg-red-400/10 border border-red-400/20 rounded-lg">
                     <p className="text-red-400 text-sm">

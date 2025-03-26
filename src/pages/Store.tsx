@@ -33,7 +33,7 @@ function Store() {
       <div 
         className="absolute inset-0 z-0"
         style={{
-          backgroundImage: 'url("https://images.unsplash.com/photo-1607988795691-3d0147b43231?auto=format&fit=crop&q=80")',
+          backgroundImage: 'url("https://i.imgur.com/jbisbDs.jpeg")',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           filter: 'brightness(0.8)'

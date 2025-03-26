@@ -79,18 +79,18 @@ export function OrderModal({ isOpen, onClose }: OrderModalProps) {
           <p className="text-gray-300 mb-4">Scan the QR code below to pay:</p>
           <div className="bg-white p-4 rounded-lg inline-block">
             <img 
-              src="https://images.unsplash.com/photo-1582650625119-3a31f8fa2699?auto=format&fit=crop&q=80&w=300&h=300" 
+              src="../images/qr.jpg" 
               alt="Payment QR Code"
               className="w-48 h-48 mx-auto"
             />
           </div>
-          <p className="text-sm text-gray-400 mt-2">Amount: $10.00</p>
+          <p className="text-sm text-gray-400 mt-2">Amount: $9.99</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Minecraft Username
+              Username
             </label>
             <input
               type="text"

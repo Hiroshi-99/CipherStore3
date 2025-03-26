@@ -77,7 +77,7 @@ function Store() {
             <h2 className="text-3xl font-bold text-white mb-6">Minecraft Account</h2>
             
             <div className="text-5xl font-bold text-emerald-400 mb-8">
-              $10.00
+              $9.99
             </div>
 
             <div className="space-y-4 mb-8">

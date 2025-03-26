@@ -8,6 +8,25 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, authLoaded } = useAuth();
+  const [timeoutExpired, setTimeoutExpired] = useState(false);
+  
+  // Set a timeout to avoid infinite loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!authLoaded) {
+        console.warn("Auth loading timeout expired - forcing navigation");
+        setTimeoutExpired(true);
+      }
+    }, 5000); // 5 second timeout
+    
+    return () => clearTimeout(timer);
+  }, [authLoaded]);
+  
+  // If auth is taking too long, redirect to home
+  if (timeoutExpired && !authLoaded) {
+    console.error("Auth verification timed out");
+    return <Navigate to="/" replace />;
+  }
   
   // Wait until auth is fully loaded before making any decisions
   if (!authLoaded) {
@@ -16,6 +35,7 @@ function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
         <div className="text-center">
           <RefreshCw size={40} className="mx-auto text-emerald-400 animate-spin mb-4" />
           <div className="text-white text-lg">Verifying admin access...</div>
+          <div className="text-gray-400 mt-2 text-sm">This should only take a moment</div>
         </div>
       </div>
     );

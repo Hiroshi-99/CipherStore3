@@ -18,24 +18,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Get initial session
     async function initializeAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await checkAdminStatus(session.user.id);
-      } else {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await checkAdminStatus(session.user.id);
+        } else {
+          setIsAdmin(false);
+        }
+      } catch (error) {
+        console.error("Error during auth initialization:", error);
+        setUser(null);
         setIsAdmin(false);
+      } finally {
+        // Always set auth as loaded, even if there was an error
+        setAuthLoaded(true);
       }
-      setAuthLoaded(true);
     }
     
     initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await checkAdminStatus(session.user.id);
-      } else {
+      try {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await checkAdminStatus(session.user.id);
+        } else {
+          setIsAdmin(false);
+        }
+      } catch (error) {
+        console.error("Error during auth state change:", error);
         setIsAdmin(false);
       }
     });
@@ -45,15 +58,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAdminStatus = async (userId: string) => {
     try {
+      console.log('Checking admin status for user:', userId);
+      
       const { data, error } = await supabase
         .from('admins')
         .select('*')
         .eq('user_id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Admin check returned error:', error);
+        throw error;
+      }
+      
       const adminStatus = !!data;
-      console.log('Admin status check for user:', userId, 'Result:', adminStatus);
+      console.log('Admin status result:', adminStatus, 'Data:', data);
       setIsAdmin(adminStatus);
     } catch (error) {
       console.error('Error checking admin status:', error);

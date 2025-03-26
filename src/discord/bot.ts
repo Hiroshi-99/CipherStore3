@@ -1,5 +1,13 @@
-import { Client, Events, GatewayIntentBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
+import { Client, Events, GatewayIntentBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, TextChannel } from 'discord.js';
 import { supabase } from '../lib/supabase';
+
+interface Order {
+  id: string;
+  username: string;
+  status: string;
+  created_at: string;
+  payment_proof?: string;
+}
 
 const DISCORD_TOKEN = import.meta.env.VITE_DISCORD_BOT_TOKEN;
 const ADMIN_CHANNEL_ID = import.meta.env.VITE_DISCORD_ADMIN_CHANNEL_ID;
@@ -21,7 +29,7 @@ client.once(Events.ClientReady, c => {
 
 // Listen for new orders and post them to Discord
 async function startOrdersListener() {
-  const channel = await client.channels.fetch(ADMIN_CHANNEL_ID);
+  const channel = await client.channels.fetch(ADMIN_CHANNEL_ID) as TextChannel;
   if (!channel || !channel.isTextBased()) {
     console.error('Admin channel not found or not a text channel');
     return;
@@ -41,7 +49,7 @@ async function startOrdersListener() {
       schema: 'public', 
       table: 'orders' 
     }, async (payload) => {
-      const order = payload.new;
+      const order = payload.new as Order;
       await sendOrderEmbed(channel, order);
     })
     .subscribe();
@@ -51,7 +59,7 @@ async function startOrdersListener() {
   };
 }
 
-async function fetchPendingOrders() {
+async function fetchPendingOrders(): Promise<Order[]> {
   const { data, error } = await supabase
     .from('orders')
     .select('*')
@@ -66,7 +74,7 @@ async function fetchPendingOrders() {
   return data || [];
 }
 
-async function sendOrderEmbed(channel, order) {
+async function sendOrderEmbed(channel: TextChannel, order: Order) {
   const paymentProofUrl = order.payment_proof 
     ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/payment-proofs/${order.payment_proof}`
     : null;
@@ -96,7 +104,7 @@ async function sendOrderEmbed(channel, order) {
     .setLabel('Reject')
     .setStyle(ButtonStyle.Danger);
 
-  const row = new ActionRowBuilder().addComponents(approveButton, rejectButton);
+  const row = ActionRowBuilder.from([approveButton, rejectButton]);
 
   await channel.send({ embeds: [embed], components: [row] });
 }
@@ -130,7 +138,7 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 });
 
-async function updateOrderStatus(orderId, status) {
+async function updateOrderStatus(orderId: string, status: string) {
   const { error } = await supabase
     .from('orders')
     .update({ status })

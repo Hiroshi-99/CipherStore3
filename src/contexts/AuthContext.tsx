@@ -5,36 +5,45 @@ import { supabase } from '../lib/supabase';
 interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
+  authLoaded: boolean;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, isAdmin: false });
+const AuthContext = createContext<AuthContextType>({ user: null, isAdmin: false, authLoaded: false });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authLoaded, setAuthLoaded] = useState(false);
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    async function initializeAuth() {
+      const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
-      checkAdminStatus(session?.user?.id);
-    });
+      if (session?.user) {
+        await checkAdminStatus(session.user.id);
+      } else {
+        setIsAdmin(false);
+      }
+      setAuthLoaded(true);
+    }
+    
+    initializeAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
-      checkAdminStatus(session?.user?.id);
+      if (session?.user) {
+        await checkAdminStatus(session.user.id);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const checkAdminStatus = async (userId: string | undefined) => {
-    if (!userId) {
-      setIsAdmin(false);
-      return;
-    }
-
+  const checkAdminStatus = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('admins')
@@ -53,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin }}>
+    <AuthContext.Provider value={{ user, isAdmin, authLoaded }}>
       {children}
     </AuthContext.Provider>
   );

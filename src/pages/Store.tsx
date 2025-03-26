@@ -51,6 +51,14 @@ function Store() {
                 <Mail size={20} />
                 My Orders
               </button>
+              {isAdmin && (
+                <a
+                  href="/admin"
+                  className="text-emerald-400 hover:text-emerald-300 flex items-center gap-2"
+                >
+                  Admin Dashboard
+                </a>
+              )}
               <button
                 onClick={handleLogout}
                 className="text-white/80 hover:text-white flex items-center gap-2"

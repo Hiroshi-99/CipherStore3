@@ -52,21 +52,32 @@ export function OrderModal({ isOpen, onClose }: OrderModalProps) {
 
       if (orderError) throw orderError;
 
-      // Send Telegram notification
+      // Send Telegram notification for new pending order
       const orderInfo = orderData && orderData[0];
       if (orderInfo) {
+        console.log('Preparing to send notification for new order:', orderInfo.id);
+        
         const message = `
-<b>🔔 New Order Received!</b>
+<b>🔔 NEW PENDING ORDER!</b>
 
 <b>Minecraft Username:</b> ${username.trim()}
 <b>Order ID:</b> ${orderInfo.id}
-<b>Status:</b> Pending
+<b>Status:</b> PENDING
 <b>Date:</b> ${new Date().toLocaleString()}
 
-Please check the admin panel to review this order.
+⚠️ Please check the admin panel to review this order.
 `;
         
-        await sendTelegramNotification(message);
+        try {
+          const notificationSent = await sendTelegramNotification(message);
+          console.log('Notification sent:', notificationSent);
+          
+          if (!notificationSent) {
+            console.error('Failed to send Telegram notification for new order');
+          }
+        } catch (notificationError) {
+          console.error('Error sending notification:', notificationError);
+        }
       }
 
       toast.success('Order submitted successfully!');

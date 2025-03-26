@@ -162,7 +162,7 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
                   rel="noopener noreferrer"
                   className="text-gray-300 hover:text-emerald-400 transition-colors flex items-center gap-1.5"
                 >
-                  <span>contact us on Discord.</span>
+                  <span>Contact us on Discord.</span>
                   <ExternalLink size={14} />
                 </a>
               </div>

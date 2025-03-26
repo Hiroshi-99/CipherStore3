@@ -242,25 +242,37 @@ function Admin() {
                       </div>
                       
                       {order.status === 'pending' && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleStatusChange(order.id, 'approved')}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition-colors"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleStatusChange(order.id, 'rejected')}
-                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
-                          >
-                            Reject
-                          </button>
+                        <div className="flex flex-col gap-2">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleStatusChange(order.id, 'approved')}
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition-colors"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleStatusChange(order.id, 'rejected')}
+                              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-400 italic mt-1">
+                            Note: Account details will be sent to customer via mail box, not email.
+                          </p>
                         </div>
                       )}
                       
                       {order.status !== 'pending' && (
-                        <div className="px-4 py-2 rounded-lg border border-gray-600 text-gray-400">
-                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        <div className="flex flex-col items-end">
+                          <div className="px-4 py-2 rounded-lg border border-gray-600 text-gray-400">
+                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          </div>
+                          {order.status === 'approved' && (
+                            <p className="text-xs text-emerald-400 mt-2">
+                              Account details will be sent via mail box
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>

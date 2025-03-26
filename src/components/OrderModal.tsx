@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Upload } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
-import { sendTelegramNotification } from '../lib/telegramNotifications';
+import { sendTelegramNotification, sendTelegramImage } from '../lib/telegramNotifications';
 
 interface OrderModalProps {
   isOpen: boolean;
@@ -57,6 +57,13 @@ export function OrderModal({ isOpen, onClose }: OrderModalProps) {
       if (orderInfo) {
         console.log('Preparing to send notification for new order:', orderInfo.id);
         
+        // Get a public URL for the uploaded image
+        const { data: publicUrlData } = supabase.storage
+          .from('payment-proofs')
+          .getPublicUrl(data.path);
+        
+        const imageUrl = publicUrlData.publicUrl;
+        
         const message = `
 <b>🔔 NEW PENDING ORDER!</b>
 
@@ -69,14 +76,33 @@ export function OrderModal({ isOpen, onClose }: OrderModalProps) {
 `;
         
         try {
-          const notificationSent = await sendTelegramNotification(message);
-          console.log('Notification sent:', notificationSent);
-          
-          if (!notificationSent) {
-            console.error('Failed to send Telegram notification for new order');
+          // First try to send the image with a brief caption
+          if (imageUrl) {
+            const imageSent = await sendTelegramImage(
+              imageUrl,
+              `🔔 Payment proof for order ${orderInfo.id} by ${username.trim()}`
+            );
+            
+            console.log('Payment proof image sent to Telegram:', imageSent);
+            
+            // If image sending failed, include a link to the image in the text notification
+            if (!imageSent) {
+              const messageWithLink = message + `\n\n<a href="${imageUrl}">View Payment Proof</a>`;
+              await sendTelegramNotification(messageWithLink);
+            }
+          } else {
+            // Just send the text notification if we couldn't get a public URL
+            await sendTelegramNotification(message);
           }
         } catch (notificationError) {
           console.error('Error sending notification:', notificationError);
+          
+          // Try sending just the text as a last resort
+          try {
+            await sendTelegramNotification(message);
+          } catch {
+            console.error('Failed to send even the text notification');
+          }
         }
       }
 

@@ -17,28 +17,19 @@ function Store() {
 
   const handleLogout = async () => {
     try {
-      // First attempt with the standard method
+      // Attempt to sign out
       const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Error signing out:', error.message);
-        
-        // If we get a 403, try an alternative approach by clearing session locally
-        if (error.status === 403) {
-          // Force clear the session locally instead of relying on the server
-          await supabase.auth.clearSession();
-          window.location.reload(); // Force page refresh to update auth state
-        }
       }
+      
+      // Whether successful or not, force a page reload to reset the UI state
+      window.location.href = '/'; // Redirect to homepage and force a full refresh
     } catch (err) {
       console.error('Unexpected error during logout:', err);
-      // As a fallback, try to clear the session locally
-      try {
-        await supabase.auth.clearSession();
-        window.location.reload();
-      } catch (clearErr) {
-        console.error('Failed to clear session:', clearErr);
-      }
+      // Force redirect anyway
+      window.location.href = '/';
     }
   };
 

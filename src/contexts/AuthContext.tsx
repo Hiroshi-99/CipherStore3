@@ -43,7 +43,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) throw error;
-      setIsAdmin(!!data);
+      const adminStatus = !!data;
+      console.log('Admin status check for user:', userId, 'Result:', adminStatus);
+      setIsAdmin(adminStatus);
     } catch (error) {
       console.error('Error checking admin status:', error);
       setIsAdmin(false);

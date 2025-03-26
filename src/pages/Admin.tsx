@@ -24,8 +24,9 @@ function Admin() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [isUpdating, setIsUpdating] = useState(false);
   const [orderToConfirm, setOrderToConfirm] = useState<{id: string, action: 'approve' | 'reject'} | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,6 +36,14 @@ function Admin() {
   useEffect(() => {
     filterOrders();
   }, [orders, searchQuery, statusFilter]);
+
+  useEffect(() => {
+    // If auth is loaded and user isn't admin, this will help with debugging
+    if (user !== null) {
+      console.log('Admin page accessed. User auth state:', { user: !!user, isAdmin });
+      setAuthLoading(false);
+    }
+  }, [user, isAdmin]);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -168,6 +177,18 @@ function Admin() {
       </div>
     );
   };
+
+  // You can add a loading state if needed
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw size={40} className="mx-auto text-emerald-400 animate-spin mb-4" />
+          <div className="text-white text-lg">Loading admin dashboard...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900">

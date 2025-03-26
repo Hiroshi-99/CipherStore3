@@ -23,7 +23,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Toaster position="top-center" />
+        <Toaster position="bottom-center" />
         <Routes>
           <Route path="/" element={<Store />} />
           <Route

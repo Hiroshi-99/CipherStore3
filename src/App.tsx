@@ -8,19 +8,14 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   const { user, isAdmin } = useAuth();
   
-  console.log('Protected Route Check:', { user, isAdmin });
-  
   if (!user) {
-    console.log('Redirecting: No user found');
     return <Navigate to="/" replace />;
   }
 
   if (!isAdmin) {
-    console.log('Redirecting: User is not admin');
     return <Navigate to="/" replace />;
   }
   
-  console.log('Admin access granted');
   return <>{children}</>;
 }
 

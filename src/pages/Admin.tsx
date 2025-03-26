@@ -14,35 +14,10 @@ interface Order {
 function Admin() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    checkAdminStatus();
     fetchOrders();
   }, []);
-
-  const checkAdminStatus = async () => {
-    const { data } = await supabase.auth.getSession();
-    
-    if (data?.session) {
-      // Check if user has admin role - modify this according to your auth setup
-      const { data: userData } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.session.user.id)
-        .single();
-      
-      if (userData?.role === 'admin') {
-        setIsAdmin(true);
-      } else {
-        // Redirect non-admin users
-        window.location.href = '/';
-      }
-    } else {
-      // Redirect unauthenticated users
-      window.location.href = '/login';
-    }
-  };
 
   const fetchOrders = async () => {
     try {
@@ -90,11 +65,6 @@ function Admin() {
         return <Clock className="text-yellow-400" size={20} />;
     }
   };
-
-  // Add a condition to only render admin content if authorized
-  if (!isAdmin) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Checking authorization...</div>;
-  }
 
   return (
     <div className="min-h-screen bg-gray-900">

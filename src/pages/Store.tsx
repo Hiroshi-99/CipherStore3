@@ -17,19 +17,26 @@ function Store() {
 
   const handleLogout = async () => {
     try {
-      // Attempt to sign out
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('Error signing out:', error.message);
-      }
-      
-      // Whether successful or not, force a page reload to reset the UI state
-      window.location.href = '/'; // Redirect to homepage and force a full refresh
+      // First, try the standard method
+      await supabase.auth.signOut();
     } catch (err) {
       console.error('Unexpected error during logout:', err);
-      // Force redirect anyway
-      window.location.href = '/';
+    } finally {
+      // Force clear local storage to remove any auth tokens
+      localStorage.removeItem('supabase.auth.token');
+      
+      // If using persist session in localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-') || key.includes('supabase')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Clear session storage as well
+      sessionStorage.clear();
+      
+      // Reload the page to reset all state
+      window.location.reload();
     }
   };
 

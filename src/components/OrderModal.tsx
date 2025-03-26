@@ -79,7 +79,7 @@ export function OrderModal({ isOpen, onClose }: OrderModalProps) {
           <p className="text-gray-300 mb-4">Scan the QR code below to pay:</p>
           <div className="bg-white p-4 rounded-lg inline-block">
             <img 
-              src="../images/qr.jpg" 
+              src="https://i.imgur.com/xmzqO4S.jpeg" 
               alt="Payment QR Code"
               className="w-48 h-48 mx-auto"
             />

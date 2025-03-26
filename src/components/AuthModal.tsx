@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
@@ -8,13 +8,35 @@ interface AuthModalProps {
   onClose: () => void;
 }
 
+type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
+
 export function AuthModal({ isOpen, onClose }: AuthModalProps) {
-  const [isLogin, setIsLogin] = useState(true);
-  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [resetToken, setResetToken] = useState<string | null>(null);
+  
+  // For simplifying conditionals in the render method
+  const isLogin = mode === 'login';
+  const isRegister = mode === 'register';
+  const isForgotPassword = mode === 'forgot';
+  const isResetPassword = mode === 'reset';
+  
+  useEffect(() => {
+    // Check URL for reset token on component mount
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      // Extract token from URL
+      const tokenMatch = hash.match(/access_token=([^&]*)/);
+      if (tokenMatch && tokenMatch[1]) {
+        setResetToken(tokenMatch[1]);
+        switchMode('reset');
+      }
+    }
+  }, []);
   
   if (!isOpen) return null;
 
@@ -51,19 +73,57 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/reset-password',
+        redirectTo: window.location.origin,
       });
       
       if (error) throw error;
       
       toast.success('Password reset instructions sent to your email');
-      setIsForgotPassword(false);
-      setIsLogin(true);
+      switchMode('login');
     } catch (error) {
       toast.error(
         error instanceof Error 
           ? error.message 
           : 'Failed to send reset instructions. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    if (!validatePassword(password)) {
+      toast.error(passwordError);
+      setLoading(false);
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: password
+      });
+      
+      if (error) throw error;
+      
+      toast.success('Password updated successfully! You can now log in.');
+      switchMode('login');
+      
+      // Clear the URL hash to remove the token
+      window.history.replaceState(null, '', window.location.pathname);
+    } catch (error) {
+      toast.error(
+        error instanceof Error 
+          ? error.message 
+          : 'Failed to update password. Please try again or request a new reset link.'
       );
     } finally {
       setLoading(false);
@@ -81,7 +141,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       return;
     }
 
-    if (!isLogin && !validatePassword(password)) {
+    if (isRegister && !validatePassword(password)) {
       toast.error(passwordError);
       setLoading(false);
       return;
@@ -128,20 +188,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const resetForm = () => {
     setEmail('');
     setPassword('');
+    setConfirmPassword('');
     setPasswordError('');
   };
 
-  const switchMode = (mode: 'login' | 'register' | 'forgot') => {
+  const switchMode = (newMode: AuthMode) => {
     resetForm();
-    if (mode === 'login') {
-      setIsLogin(true);
-      setIsForgotPassword(false);
-    } else if (mode === 'register') {
-      setIsLogin(false);
-      setIsForgotPassword(false);
-    } else {
-      setIsForgotPassword(true);
-    }
+    setMode(newMode);
   };
 
   return (
@@ -157,9 +210,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         <h2 className="text-2xl font-bold text-white mb-6">
           {isForgotPassword 
             ? 'Reset Password' 
-            : isLogin 
-              ? 'Login' 
-              : 'Register'}
+            : isResetPassword
+              ? 'Set New Password'
+              : isLogin 
+                ? 'Login' 
+                : 'Register'}
         </h2>
 
         {isForgotPassword ? (
@@ -196,6 +251,54 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </button>
             </p>
           </form>
+        ) : isResetPassword ? (
+          <form onSubmit={handleSetNewPassword} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                New Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                required
+              />
+              {passwordError && (
+                <p className="text-red-400 text-xs mt-1">{passwordError}</p>
+              )}
+              {!passwordError && password && (
+                <p className="text-green-400 text-xs mt-1">Password meets requirements</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                required
+              />
+              {password && confirmPassword && password !== confirmPassword && (
+                <p className="text-red-400 text-xs mt-1">Passwords do not match</p>
+              )}
+              {password && confirmPassword && password === confirmPassword && (
+                <p className="text-green-400 text-xs mt-1">Passwords match</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg py-2 px-4 transition duration-300 disabled:opacity-50"
+            >
+              {loading ? 'Updating...' : 'Set New Password'}
+            </button>
+          </form>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -222,10 +325,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 className="w-full bg-gray-700/50 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
                 required
               />
-              {!isLogin && passwordError && (
+              {isRegister && passwordError && (
                 <p className="text-red-400 text-xs mt-1">{passwordError}</p>
               )}
-              {!isLogin && !passwordError && password && (
+              {isRegister && !passwordError && password && (
                 <p className="text-green-400 text-xs mt-1">Password meets requirements</p>
               )}
             </div>

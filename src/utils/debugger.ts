@@ -1,13 +1,14 @@
-import eruda from 'eruda';
-
-export const initDebugger = () => {
-  // Only initialize in development mode
-  if (import.meta.env.DEV) {
+// Skip including Eruda in production builds
+if (process.env.NODE_ENV === 'production') {
+  export const initDebugger = () => {
+    // Do nothing in production
+  };
+} else {
+  // Development version
+  import eruda from 'eruda';
+  
+  export const initDebugger = () => {
     eruda.init();
-    
-    // You can customize which panels to show
-    // eruda.show('console').show();
-    
     console.log('Mobile debugger initialized');
-  }
-}; 
+  };
+} 

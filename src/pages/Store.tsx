@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Check, LogOut, Mail } from 'lucide-react';
+import { ShoppingCart, Check, LogOut, Mail, Info } from 'lucide-react';
 import { AuthModal } from '../components/AuthModal';
 import { OrderModal } from '../components/OrderModal';
 import { MailboxModal } from '../components/MailboxModal';
+import { InfoModal } from '../components/InfoModal';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
@@ -11,6 +12,7 @@ function Store() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [isMailboxModalOpen, setIsMailboxModalOpen] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const { user, isAdmin } = useAuth();
 
   const handleLogout = async () => {
@@ -107,7 +109,16 @@ function Store() {
 
         {/* Footer */}
         <footer className="p-6 text-center text-white/80 text-sm">
-          Copyright © 2024-2025 Cipher. All Rights Reserved.
+          <div className="flex flex-col items-center justify-center gap-3">
+            <button
+              onClick={() => setIsInfoModalOpen(true)}
+              className="text-emerald-400 hover:text-emerald-300 transition-colors text-sm flex items-center gap-1.5"
+            >
+              <Info size={16} />
+              <span>About Us</span>
+            </button>
+            <div>Copyright © 2024-2025 Cipher. All Rights Reserved.</div>
+          </div>
         </footer>
       </div>
 
@@ -124,6 +135,11 @@ function Store() {
       <MailboxModal
         isOpen={isMailboxModalOpen}
         onClose={() => setIsMailboxModalOpen(false)}
+      />
+
+      <InfoModal
+        isOpen={isInfoModalOpen}
+        onClose={() => setIsInfoModalOpen(false)}
       />
     </div>
   );

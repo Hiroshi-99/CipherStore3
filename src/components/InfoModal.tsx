@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Server, MessageSquare, Info, Users, Loader } from 'lucide-react';
+import { X, Server, MessageSquare, Info, Users, Loader, Copy, ExternalLink } from 'lucide-react';
 
 interface InfoModalProps {
   isOpen: boolean;
@@ -19,6 +19,7 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
   const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -55,6 +56,15 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
     }
   };
 
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        setCopiedText(label);
+        setTimeout(() => setCopiedText(null), 2000);
+      })
+      .catch(err => console.error('Failed to copy text: ', err));
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -82,7 +92,20 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
                   <Loader className="animate-spin text-emerald-400" size={16} />
                 )}
               </div>
-              <p className="text-gray-300">unicornmc.club</p>
+              
+              {/* Clickable Server Address */}
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => copyToClipboard('unicornmc.club', 'server')}
+                  className="text-gray-300 hover:text-emerald-400 transition-colors flex items-center gap-1.5"
+                >
+                  <span>unicornmc.club</span>
+                  <Copy size={14} />
+                </button>
+                {copiedText === 'server' && (
+                  <span className="text-xs text-emerald-400">Copied!</span>
+                )}
+              </div>
               
               {/* Server Status */}
               <div className="mt-2">
@@ -130,7 +153,20 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
             <MessageSquare size={20} className="text-emerald-400 mt-1" />
             <div>
               <h3 className="text-lg font-semibold text-white">Discord</h3>
-              <p className="text-gray-300">discord.gg/ciphercraft</p>
+              
+              {/* Clickable Discord Link */}
+              <div className="flex items-center gap-2">
+                <a 
+                  href="https://discord.gg/UddHeYzXJr" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-300 hover:text-emerald-400 transition-colors flex items-center gap-1.5"
+                >
+                  <span>discord.gg/cipher88</span>
+                  <ExternalLink size={14} />
+                </a>
+              </div>
+              
               <p className="text-sm text-gray-400 mt-1">Join our community for support, updates, and connect with other players.</p>
             </div>
           </div>

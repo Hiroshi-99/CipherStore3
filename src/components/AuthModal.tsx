@@ -6,17 +6,19 @@ import toast from 'react-hot-toast';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialMode?: AuthMode;
 }
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
 
-export function AuthModal({ isOpen, onClose }: AuthModalProps) {
-  const [mode, setMode] = useState<AuthMode>('login');
+export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalProps) {
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [resetToken, setResetToken] = useState<string | null>(null);
   
   // For simplifying conditionals in the render method
   const isLogin = mode === 'login';
@@ -24,22 +26,25 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const isForgotPassword = mode === 'forgot';
   const isResetPassword = mode === 'reset';
   
+  // Check for reset token when component mounts or when isOpen changes
   useEffect(() => {
-    // Check if we're in a password reset flow
-    // Supabase will redirect back with a special hash in the URL
+    if (isOpen) {
+      checkForResetToken();
+    }
+  }, [isOpen]);
+  
+  // Extract reset token from URL if present
+  const checkForResetToken = () => {
     const hash = window.location.hash;
     if (hash && hash.includes('type=recovery')) {
-      // The user has clicked the reset password link in their email
-      // and been redirected back to our app
-      switchMode('reset');
-      
-      // Clear the hash to avoid issues with re-mounting
-      // This is optional but helps avoid accidental resubmissions
-      if (!isResetPassword) {
-        window.history.replaceState({}, document.title, window.location.pathname);
+      // Extract token from URL
+      const tokenMatch = hash.match(/access_token=([^&]*)/);
+      if (tokenMatch && tokenMatch[1]) {
+        setResetToken(tokenMatch[1]);
+        switchMode('reset');
       }
     }
-  }, []);
+  };
   
   if (!isOpen) return null;
 
@@ -75,18 +80,15 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }
     
     try {
-      // Create a specific URL for the password reset page
-      // This URL must be added to your redirect URLs in the Supabase dashboard
-      const resetPasswordURL = `${window.location.origin}/account/reset-password`;
-      
+      // Use a specific path for password reset according to Supabase docs
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: resetPasswordURL,
+        redirectTo: `${window.location.origin}/reset-password`,
       });
       
       if (error) throw error;
       
       toast.success('Password reset instructions sent to your email');
-      toast.success('Please check your inbox and click the link to reset your password');
+      toast.success('Please check your email for the reset link', { duration: 5000 });
       switchMode('login');
     } catch (error) {
       toast.error(
@@ -116,30 +118,23 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }
     
     try {
-      // According to Supabase docs, we just need to call updateUser
-      // The auth state should already be set from the recovery link
       const { error } = await supabase.auth.updateUser({
         password: password
       });
       
       if (error) throw error;
       
-      toast.success('Password updated successfully! You can now log in with your new password.');
+      toast.success('Password updated successfully! You can now log in.');
       switchMode('login');
       
-      // Clear the URL hash after successful password reset
+      // Clear the URL hash to remove the token
       window.history.replaceState(null, '', window.location.pathname);
     } catch (error) {
-      if (error instanceof Error && error.message.includes('not authenticated')) {
-        toast.error('Your password reset link has expired. Please request a new one.');
-        switchMode('forgot');
-      } else {
-        toast.error(
-          error instanceof Error 
-            ? error.message 
-            : 'Failed to update password. Please try again or request a new reset link.'
-        );
-      }
+      toast.error(
+        error instanceof Error 
+          ? error.message 
+          : 'Failed to update password. Please try again or request a new reset link.'
+      );
     } finally {
       setLoading(false);
     }
@@ -382,5 +377,25 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         )}
       </div>
     </div>
+  );
+}
+
+// Create a separate component to handle recovery URLs
+export function PasswordResetHandler() {
+  const [modalOpen, setModalOpen] = useState(false);
+  
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      setModalOpen(true);
+    }
+  }, []);
+  
+  return (
+    <AuthModal 
+      isOpen={modalOpen} 
+      onClose={() => setModalOpen(false)}
+      initialMode="reset"
+    />
   );
 }

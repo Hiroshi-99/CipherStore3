@@ -12,43 +12,37 @@ const AuthContext = createContext<AuthContextType>({ user: null, isAdmin: false 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      checkAdminStatus(session?.user?.id);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      checkAdminStatus(session?.user?.id);
-    });
-
-    return () => subscription.unsubscribe();
+    const checkSession = async () => {
+      try {
+        console.log('Checking session...');
+        const { data } = await supabase.auth.getSession();
+        console.log('Session data:', data);
+        
+        if (data.session) {
+          setUser(data.session.user);
+          
+          // Check admin status
+          const { data: userData } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', data.session.user.id)
+            .single();
+          
+          console.log('User profile data:', userData);
+          setIsAdmin(userData?.role === 'admin');
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkSession();
   }, []);
-
-  const checkAdminStatus = async (userId: string | undefined) => {
-    if (!userId) {
-      setIsAdmin(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('admins')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) throw error;
-      setIsAdmin(!!data);
-    } catch (error) {
-      console.error('Error checking admin status:', error);
-      setIsAdmin(false);
-    }
-  };
 
   return (
     <AuthContext.Provider value={{ user, isAdmin }}>

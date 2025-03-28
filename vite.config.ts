@@ -4,31 +4,54 @@ import { visualizer } from 'rollup-plugin-visualizer';
 import compression from 'vite-plugin-compression';
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
-    compression(), // Enables Gzip compression
-    visualizer() // Analyzes bundle size
+    compression({
+      algorithm: 'gzip',
+      ext: '.gz',
+    }), 
+    visualizer({
+      open: false,
+      gzipSize: true,
+      brotliSize: true,
+      filename: 'dist/stats.html'
+    })
   ],
   build: {
     target: 'esnext',
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
+        drop_console: mode === 'production',
+        drop_debugger: mode === 'production',
+        pure_funcs: mode === 'production' ? ['console.log', 'console.debug', 'console.info'] : [],
+      },
+      format: {
+        comments: false,
+      },
     },
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['lucide-react']
-        }
-      }
-    }
+          ui: ['lucide-react'],
+          supabase: ['@supabase/supabase-js'],
+        },
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+      },
+    },
+    sourcemap: mode !== 'production',
+    chunkSizeWarningLimit: 1000,
+    assetsInlineLimit: 4096,
+    emptyOutDir: true,
+    reportCompressedSize: true
   },
   optimizeDeps: {
-    exclude: ['lucide-react']
-  }
-});
+    exclude: ['lucide-react'],
+    include: ['react', 'react-dom', 'react-router-dom'],
+  },
+  cacheDir: '.vite-cache',
+}));

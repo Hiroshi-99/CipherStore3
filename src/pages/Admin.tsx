@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { sendTelegramNotification } from '../lib/telegramNotifications';
+import SEO from '../components/SEO';
 
 interface Order {
   id: string;
@@ -208,7 +209,12 @@ Account details have been added to this order.
   const stats = getOrderStats();
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gray-900 text-white">
+      <SEO 
+        title="Admin Dashboard | Minecraft Accounts Store"
+        description="Manage orders and inventory for the Minecraft Accounts Store"
+      />
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <header className="py-6 flex justify-between items-center">
@@ -273,7 +279,7 @@ Account details have been added to this order.
                 <div className="flex-1 min-w-[200px]">
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Search size={18} className="text-gray-400" />
+                      <Search size={18} className="text-gray-400" aria-hidden="true" />
                     </div>
                     <input
                       type="text"
@@ -281,6 +287,7 @@ Account details have been added to this order.
                       placeholder="Search by username..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      aria-label="Search orders by username or ID"
                     />
                   </div>
                 </div>
@@ -322,19 +329,22 @@ Account details have been added to this order.
                           <h3 className="text-white font-medium">
                             Order by {order.username}
                           </h3>
-                          <span className="text-xs bg-gray-600 text-gray-300 px-2 py-1 rounded">
+                          <span className="text-xs bg-gray-600 text-gray-300 px-2 py-1 rounded" aria-label={`Order ID: ${order.id}`}>
                             ID: {order.id.substring(0, 8)}...
                           </span>
                         </div>
                         <p className="text-sm text-gray-400">
-                          Ordered on: {new Date(order.created_at).toLocaleDateString()} at {new Date(order.created_at).toLocaleTimeString()}
+                          <time dateTime={order.created_at}>
+                            Ordered on: {new Date(order.created_at).toLocaleDateString()} at {new Date(order.created_at).toLocaleTimeString()}
+                          </time>
                         </p>
                         {order.payment_proof && (
                           <a
                             href={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/payment-proofs/${order.payment_proof}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-emerald-400 hover:text-emerald-300 text-sm mt-2 inline-block"
+                            className="text-emerald-400 hover:text-emerald-300 focus:text-emerald-300 text-sm mt-2 inline-block focus:outline-none focus:ring-2 focus:ring-emerald-400 rounded"
+                            aria-label="View payment proof document"
                           >
                             View Payment Proof
                           </a>

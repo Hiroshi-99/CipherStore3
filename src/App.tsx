@@ -1,18 +1,25 @@
-import React, { useEffect } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import Store from './pages/Store';
-import Admin from './pages/Admin';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { testTelegramNotification, checkTelegramConfig } from './lib/telegramNotifications';
+import { checkTelegramConfig } from './lib/telegramNotifications';
+
+// Lazy load pages for better code splitting
+const Store = lazy(() => import('./pages/Store'));
+const Admin = lazy(() => import('./pages/Admin'));
+
+// Loading component for suspense fallback
+const LoadingFallback = () => (
+  <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+    <p>Loading...</p>
+  </div>
+);
 
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, loading } = useAuth();
   
   if (loading) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
-      <p>Loading...</p>
-    </div>;
+    return <LoadingFallback />;
   }
   
   if (!user) {
@@ -31,31 +38,26 @@ function App() {
     // Check if Telegram config is present
     const config = checkTelegramConfig();
     console.log('Telegram configuration:', config);
-    
-    // Uncomment to send a test notification once when the app loads
-    // if (config.hasToken && config.hasChatId) {
-    //   testTelegramNotification().then(success => {
-    //     console.log('Test notification sent:', success);
-    //   });
-    // }
   }, []);
   
   return (
     <AuthProvider>
       <Toaster position="top-center" />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Store />} />
-          <Route 
-            path="/admin" 
-            element={
-              <ProtectedAdminRoute>
-                <Admin />
-              </ProtectedAdminRoute>
-            } 
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route path="/" element={<Store />} />
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedAdminRoute>
+                  <Admin />
+                </ProtectedAdminRoute>
+              } 
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   );

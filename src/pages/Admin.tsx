@@ -1,11 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle, XCircle, Clock, LogOut, Search, Filter, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import XCircle from 'lucide-react/dist/esm/icons/x-circle';
+import Clock from 'lucide-react/dist/esm/icons/clock';
+import LogOut from 'lucide-react/dist/esm/icons/log-out';
+import Search from 'lucide-react/dist/esm/icons/search';
+import Filter from 'lucide-react/dist/esm/icons/filter';
+import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { sendTelegramNotification } from '../lib/telegramNotifications';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Badge } from '../components/ui/Badge';
 
 interface Order {
   id: string;
@@ -18,10 +23,6 @@ interface Order {
     password?: string;
     additional_info?: string;
   };
-  profiles?: {
-    email?: string;
-  };
-  product_name?: string;
 }
 
 function Admin() {
@@ -38,50 +39,16 @@ function Admin() {
     password: '',
     additional_info: ''
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const parentRef = useRef<HTMLDivElement>(null);
   
-  const rowVirtualizer = useVirtualizer({
-    count: filteredOrders.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 60, // estimated row height
-    overscan: 5
-  });
-
   useEffect(() => {
     fetchOrders();
   }, []);
   
-  useEffect(() => {
-    filterOrders();
-  }, [orders, statusFilter, searchTerm]);
-
-  const fetchOrders = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*, profiles(*)')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      
-      console.log('Fetched orders:', data);
-      
-      const ordersWithStatus = data.map(order => ({
-        ...order,
-        status: order.status || 'pending'
-      }));
-      
-      setOrders(ordersWithStatus);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      toast.error('Failed to load orders');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterOrders = () => {
+  // Memoize filterOrders
+  const filterOrders = useCallback(() => {
     let result = [...orders];
     
     // Apply status filter
@@ -98,10 +65,45 @@ function Admin() {
       );
     }
     
-    setFilteredOrders(result);
+    return result;
+  }, [orders, statusFilter, searchTerm]);
+  
+  // Use useMemo for filtered orders
+  const filteredOrdersData = useMemo(() => {
+    return filterOrders();
+  }, [filterOrders]);
+  
+  // Update effect to use memoized value
+  useEffect(() => {
+    setFilteredOrders(filteredOrdersData);
+  }, [filteredOrdersData]);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          id, 
+          username, 
+          status, 
+          created_at, 
+          payment_proof,
+          account_details
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setOrders(data || []);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch orders');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleStatusChange = async (orderId: string, newStatus: string) => {
+  // Memoize handlers
+  const handleStatusChange = useCallback(async (orderId: string, newStatus: string) => {
     try {
       const { error } = await supabase
         .from('orders')
@@ -146,7 +148,7 @@ ${newStatus === 'approved'
       toast.error('Failed to update order status');
       console.error(error);
     }
-  };
+  }, []);
 
   const handleSubmitAccountDetails = async () => {
     try {
@@ -230,31 +232,13 @@ Account details have been added to this order.
 
   const stats = getOrderStats();
 
-  const renderStatusBadge = (status) => {
-    let badgeClass = '';
-    
-    switch(status?.toLowerCase()) {
-      case 'completed':
-        badgeClass = 'bg-green-500 text-white';
-        break;
-      case 'processing':
-        badgeClass = 'bg-blue-500 text-white';
-        break;
-      case 'cancelled':
-        badgeClass = 'bg-red-500 text-white';
-        break;
-      case 'pending':
-      default:
-        badgeClass = 'bg-yellow-500 text-white';
-        break;
-    }
-    
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${badgeClass}`}>
-        {status || 'Pending'}
-      </span>
-    );
-  };
+  // Create virtualizer for order list
+  const rowVirtualizer = useVirtualizer({
+    count: filteredOrders.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 120, // Adjust based on your item height
+    overscan: 5,
+  });
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -359,36 +343,27 @@ Account details have been added to this order.
                   </div>
                 </div>
               ) : (
-                <div 
-                  ref={parentRef}
-                  className="max-h-[600px] overflow-auto"
-                  style={{
-                    contain: 'strict'
-                  }}
-                >
+                <div ref={parentRef} className="overflow-auto h-[calc(100vh-200px)]">
                   <div
+                    className="relative w-full"
                     style={{
                       height: `${rowVirtualizer.getTotalSize()}px`,
-                      width: '100%',
-                      position: 'relative'
                     }}
                   >
-                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                      const order = filteredOrders[virtualRow.index];
+                    {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                      const order = filteredOrders[virtualItem.index];
                       return (
                         <div
                           key={order.id}
+                          className="absolute top-0 left-0 w-full"
                           style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: `${virtualRow.size}px`,
-                            transform: `translateY(${virtualRow.start}px)`
+                            height: `${virtualItem.size}px`,
+                            transform: `translateY(${virtualItem.start}px)`,
                           }}
-                          className="p-4 border-b border-gray-700"
                         >
-                          <div className="flex justify-between items-center">
+                          <div
+                            className="bg-gray-700/50 rounded-lg p-6 flex items-center justify-between"
+                          >
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 {getStatusIcon(order.status)}
@@ -399,7 +374,7 @@ Account details have been added to this order.
                                   ID: {order.id.substring(0, 8)}...
                                 </span>
                               </div>
-                              <p className="text-sm text-gray-300">
+                              <p className="text-sm text-gray-400">
                                 Ordered on: {new Date(order.created_at).toLocaleDateString()} at {new Date(order.created_at).toLocaleTimeString()}
                               </p>
                               {order.payment_proof && (
@@ -422,26 +397,65 @@ Account details have been added to this order.
                               )}
                             </div>
                             
-                            <div className="flex-1 text-right">
-                              <div className="mb-2">
-                                {renderStatusBadge(order.status)}
+                            {order.status === 'pending' && (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleStatusChange(order.id, 'approved')}
+                                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition-colors"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleStatusChange(order.id, 'rejected')}
+                                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+                                >
+                                  Reject
+                                </button>
                               </div>
-                              
-                              <select
-                                value={order.status || 'pending'}
-                                onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                                className="bg-gray-800 text-white text-sm rounded border border-gray-600 p-1"
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="processing">Processing</option>
-                                <option value="completed">Completed</option>
-                                <option value="cancelled">Cancelled</option>
-                              </select>
-                            </div>
+                            )}
+                            
+                            {order.status === 'approved' && (
+                              <div className="flex gap-2">
+                                <div className="px-4 py-2 rounded-lg border border-gray-600 text-gray-400">
+                                  Approved
+                                </div>
+                                <button
+                                  onClick={() => openAccountDetails(order)}
+                                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+                                >
+                                  {order.account_details ? 'Edit Account' : 'Add Account'}
+                                </button>
+                              </div>
+                            )}
+                            
+                            {order.status === 'rejected' && (
+                              <div className="px-4 py-2 rounded-lg border border-gray-600 text-gray-400">
+                                Rejected
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
                     })}
+                  </div>
+                  
+                  {/* Add pagination controls */}
+                  <div className="flex justify-between items-center mt-4">
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="bg-gray-700 px-3 py-1 rounded disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <span>Page {currentPage}</span>
+                    <button 
+                      onClick={() => setCurrentPage(p => p + 1)}
+                      disabled={filteredOrders.length < pageSize}
+                      className="bg-gray-700 px-3 py-1 rounded disabled:opacity-50"
+                    >
+                      Next
+                    </button>
                   </div>
                 </div>
               )}

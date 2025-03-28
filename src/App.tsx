@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { testTelegramNotification, checkTelegramConfig } from './lib/telegramNotifications';
 
-// Replace static imports with lazy loading
+// Lazy load components
 const Store = lazy(() => import('./pages/Store'));
 const Admin = lazy(() => import('./pages/Admin'));
 
@@ -47,8 +47,8 @@ function App() {
       <Toaster position="top-center" />
       <BrowserRouter>
         <Suspense fallback={
-          <div className="flex items-center justify-center min-h-screen bg-gray-900">
-            <div className="text-white">Loading...</div>
+          <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+            <p>Loading...</p>
           </div>
         }>
           <Routes>

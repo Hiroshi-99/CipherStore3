@@ -1,12 +1,10 @@
-import React, { useEffect, Suspense, lazy } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import Store from './pages/Store';
+import Admin from './pages/Admin';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { testTelegramNotification, checkTelegramConfig } from './lib/telegramNotifications';
-
-// Lazy load components
-const Store = lazy(() => import('./pages/Store'));
-const Admin = lazy(() => import('./pages/Admin'));
 
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, loading } = useAuth();
@@ -46,24 +44,18 @@ function App() {
     <AuthProvider>
       <Toaster position="top-center" />
       <BrowserRouter>
-        <Suspense fallback={
-          <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
-            <p>Loading...</p>
-          </div>
-        }>
-          <Routes>
-            <Route path="/" element={<Store />} />
-            <Route 
-              path="/admin" 
-              element={
-                <ProtectedAdminRoute>
-                  <Admin />
-                </ProtectedAdminRoute>
-              } 
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route path="/" element={<Store />} />
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedAdminRoute>
+                <Admin />
+              </ProtectedAdminRoute>
+            } 
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </BrowserRouter>
     </AuthProvider>
   );

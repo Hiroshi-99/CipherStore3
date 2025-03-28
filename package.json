@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && node scripts/copy-service-worker.cjs",
     "build:prod": "cross-env NODE_ENV=production vite build",
     "lint": "eslint .",
     "preview": "vite preview",

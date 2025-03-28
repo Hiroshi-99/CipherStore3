@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
 import compression from 'vite-plugin-compression';
+import fs from 'node:fs';
+import path from 'node:path';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -16,7 +18,19 @@ export default defineConfig(({ mode }) => ({
       gzipSize: true,
       brotliSize: true,
       filename: 'dist/stats.html'
-    })
+    }),
+    {
+      name: 'configure-service-worker',
+      writeBundle() {
+        if (!fs.existsSync('dist')) {
+          fs.mkdirSync('dist', { recursive: true });
+        }
+        
+        const swContent = fs.readFileSync('src/service-worker.ts', 'utf-8');
+        fs.writeFileSync('dist/service-worker.js', swContent, 'utf-8');
+        console.log('✓ Service worker copied to dist/service-worker.js');
+      },
+    }
   ],
   build: {
     target: 'esnext',
@@ -54,4 +68,10 @@ export default defineConfig(({ mode }) => ({
     include: ['react', 'react-dom', 'react-router-dom'],
   },
   cacheDir: '.vite-cache',
+  server: {
+    headers: {
+      'Service-Worker-Allowed': '/',
+      'Content-Type': 'application/javascript; charset=utf-8',
+    },
+  }
 }));

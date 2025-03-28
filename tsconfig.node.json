@@ -10,7 +10,10 @@
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    "noEmit": true,
+    
+    /* Remove noEmit and add composite */
+    "composite": true,
+    "outDir": "./dist",
 
     /* Linting */
     "strict": true,

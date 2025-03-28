@@ -43,29 +43,35 @@ function Admin() {
   });
 
   useEffect(() => {
+    async function fetchOrders() {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*, profiles(*)')
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          throw error;
+        }
+        
+        console.log('Fetched orders:', data); // Debug log
+        setOrders(data || []);
+        setFilteredOrders(data || []);
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+        toast.error('Failed to load orders');
+      } finally {
+        setLoading(false);
+      }
+    }
+    
     fetchOrders();
   }, []);
   
   useEffect(() => {
     filterOrders();
   }, [orders, statusFilter, searchTerm]);
-
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setOrders(data || []);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to fetch orders');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filterOrders = () => {
     let result = [...orders];

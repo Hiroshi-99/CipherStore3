@@ -45,14 +45,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAdminStatus = async (userId: string) => {
     try {
+      console.log('Checking admin status for user:', userId); // Debug log
       const { data, error } = await supabase
         .from('admins')
         .select('*')
         .eq('user_id', userId)
         .single();
 
-      if (error) throw error;
-      setIsAdmin(!!data);
+      if (error && error.code !== 'PGRST116') { // PGRST116 is the error for no rows returned
+        console.error('Admin check error:', error);
+        throw error;
+      }
+      
+      const isUserAdmin = !!data;
+      console.log('User is admin:', isUserAdmin); // Debug log
+      setIsAdmin(isUserAdmin);
     } catch (error) {
       console.error('Error checking admin status:', error);
       setIsAdmin(false);

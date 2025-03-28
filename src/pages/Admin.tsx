@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle, XCircle, Clock, LogOut, Search, Filter, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { sendTelegramNotification } from '../lib/telegramNotifications';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 interface Order {
   id: string;
@@ -32,7 +33,15 @@ function Admin() {
     password: '',
     additional_info: ''
   });
+  const parentRef = useRef<HTMLDivElement>(null);
   
+  const rowVirtualizer = useVirtualizer({
+    count: filteredOrders.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 60, // estimated row height
+    overscan: 5
+  });
+
   useEffect(() => {
     fetchOrders();
   }, []);
@@ -310,83 +319,109 @@ Account details have been added to this order.
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {filteredOrders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="bg-gray-700/50 rounded-lg p-6 flex items-center justify-between"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          {getStatusIcon(order.status)}
-                          <h3 className="text-white font-medium">
-                            Order by {order.username}
-                          </h3>
-                          <span className="text-xs bg-gray-600 text-gray-300 px-2 py-1 rounded">
-                            ID: {order.id.substring(0, 8)}...
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-400">
-                          Ordered on: {new Date(order.created_at).toLocaleDateString()} at {new Date(order.created_at).toLocaleTimeString()}
-                        </p>
-                        {order.payment_proof && (
-                          <a
-                            href={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/payment-proofs/${order.payment_proof}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-emerald-400 hover:text-emerald-300 text-sm mt-2 inline-block"
-                          >
-                            View Payment Proof
-                          </a>
-                        )}
-                        
-                        {order.account_details && order.status === 'approved' && (
-                          <div className="mt-2">
-                            <span className="text-xs bg-emerald-600/30 text-emerald-300 px-2 py-1 rounded">
-                              Account details provided
-                            </span>
+                <div 
+                  ref={parentRef}
+                  className="max-h-[600px] overflow-auto"
+                  style={{
+                    contain: 'strict'
+                  }}
+                >
+                  <div
+                    style={{
+                      height: `${rowVirtualizer.getTotalSize()}px`,
+                      width: '100%',
+                      position: 'relative'
+                    }}
+                  >
+                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                      const order = filteredOrders[virtualRow.index];
+                      return (
+                        <div
+                          key={order.id}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: `${virtualRow.size}px`,
+                            transform: `translateY(${virtualRow.start}px)`
+                          }}
+                        >
+                          <div className="bg-gray-700/50 rounded-lg p-6 flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                {getStatusIcon(order.status)}
+                                <h3 className="text-white font-medium">
+                                  Order by {order.username}
+                                </h3>
+                                <span className="text-xs bg-gray-600 text-gray-300 px-2 py-1 rounded">
+                                  ID: {order.id.substring(0, 8)}...
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-400">
+                                Ordered on: {new Date(order.created_at).toLocaleDateString()} at {new Date(order.created_at).toLocaleTimeString()}
+                              </p>
+                              {order.payment_proof && (
+                                <a
+                                  href={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/payment-proofs/${order.payment_proof}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-400 hover:text-emerald-300 text-sm mt-2 inline-block"
+                                >
+                                  View Payment Proof
+                                </a>
+                              )}
+                              
+                              {order.account_details && order.status === 'approved' && (
+                                <div className="mt-2">
+                                  <span className="text-xs bg-emerald-600/30 text-emerald-300 px-2 py-1 rounded">
+                                    Account details provided
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {order.status === 'pending' && (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleStatusChange(order.id, 'approved')}
+                                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition-colors"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleStatusChange(order.id, 'rejected')}
+                                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            )}
+                            
+                            {order.status === 'approved' && (
+                              <div className="flex gap-2">
+                                <div className="px-4 py-2 rounded-lg border border-gray-600 text-gray-400">
+                                  Approved
+                                </div>
+                                <button
+                                  onClick={() => openAccountDetails(order)}
+                                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+                                >
+                                  {order.account_details ? 'Edit Account' : 'Add Account'}
+                                </button>
+                              </div>
+                            )}
+                            
+                            {order.status === 'rejected' && (
+                              <div className="px-4 py-2 rounded-lg border border-gray-600 text-gray-400">
+                                Rejected
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      
-                      {order.status === 'pending' && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleStatusChange(order.id, 'approved')}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition-colors"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleStatusChange(order.id, 'rejected')}
-                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
-                          >
-                            Reject
-                          </button>
                         </div>
-                      )}
-                      
-                      {order.status === 'approved' && (
-                        <div className="flex gap-2">
-                          <div className="px-4 py-2 rounded-lg border border-gray-600 text-gray-400">
-                            Approved
-                          </div>
-                          <button
-                            onClick={() => openAccountDetails(order)}
-                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-                          >
-                            {order.account_details ? 'Edit Account' : 'Add Account'}
-                          </button>
-                        </div>
-                      )}
-                      
-                      {order.status === 'rejected' && (
-                        <div className="px-4 py-2 rounded-lg border border-gray-600 text-gray-400">
-                          Rejected
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
